@@ -1,0 +1,246 @@
+
+Importing all packages and checking structure of the dataset. Checked class of variables, discarded invaluable columns and prepared and cleaned the data for further analysis.
+```{r}
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(readxl)
+library(lubridate)
+library("tidyr")
+
+
+data <- read_excel("C:/Users/SOMYA SINGHAL/Downloads/ANZ synthesised transaction dataset.xlsx")
+head(data)
+
+colnames(data)
+nrow(data)
+
+df<-data.frame(data)
+
+#removed column 'card present flag', 'bpay biller code' and 'merchent code' as these contaied more than 30% of missing values
+df<-select (df,-c(2,3,9))
+df %>% View()
+
+#understanding the data
+summary(df)
+str(df)
+
+#checking unique values of the variables
+unique(df$status)
+unique(df$txn_description)
+unique(df$movement)
+unique(df$gender)
+unique(df$age)
+unique(df$merchant_state)
+unique(df$currency)
+class(df$date)
+class(data$balance)
+
+#factorise the columns
+df$status<-factor(df$status,levels=c("authorized", "posted"))
+df$txn_description<-factor(df$txn_description,levels=c("POS","SALES-POS","PAYMENT","INTER BANK","PAY/SALARY","PHONE BANK"))
+
+#transform the state of date variable
+df$date<-ymd(df$date)
+class(df$date)
+
+class(df$txn_description)
+class(df$status)
+
+```
+
+
+
+Getting average transaction amount and no. of transactions which are made each month on average.
+```{r}
+
+mean(data$amount)
+
+#extracted months from date column
+month<-months(data$date)
+
+
+df<-cbind(df,month)
+head(df)
+str(df)
+colnames(df)
+
+class(df$month)
+unique(month)
+
+aug <- subset(df,month=="August",transaction_id)
+count(aug)
+class(aug)
+str(aug)
+
+sep <- subset(df,month=="September",transaction_id)
+count(sep)
+class(sep)
+str(sep)
+
+
+oct <- subset(df,month=="October",transaction_id)
+count(oct)
+class(oct)
+str(oct)
+
+
+(count(aug)+count(sep)+count(oct))/3
+
+
+#separating date and time 
+df<- df %>% separate(extraction, into = c("transcation date", "transaction time"), sep = "T")
+head(df)
+colnames(df)
+df$dates
+df$time
+
+
+```
+
+## Including Plots
+
+1) Plot for in what ways the transaction amount has been spend
+2) Visualising location
+3) Transaction amount spent monthly
+4) Visualizing relation between age and amount
+5) Visualizing relation between age and current balance
+
+```{r}
+
+#visualsing amount vs transaction method
+boxplot(amount~txn_description,data=data, main="transaction vol vs spending",xlab="spending", ylab="transaction amount")
+
+summary(df$txn_description)
+summary(df$amount)
+
+#removing the outliers
+dframe<-df %>% group_by(txn_description) %>% filter(amount <= 80) 
+
+#updated plot for amount vs transaction method
+boxplot(amount~txn_description,data=dframe, main="transaction vol vs spending",xlab="spending", ylab="transaction amount",col=(c("red","green","pink","blue","orange")))
+
+
+unique(df$merchant_state)
+
+merch<-df %>% group_by(merchant_state) %>% filter(amount <= 70) 
+
+boxplot(amount~merchant_state,data=merch,col=c("pink"))
+
+date_value<-df %>% group_by(date) %>% count()
+
+plot(date_value,df$amount,type="l",col='blue',ylab="amount",main="transaction amount per month")
+
+plot(df$age,df$amount,type='l',col='red',xlab="age",ylab="amount",main="transaction amount vs age")
+
+plot(df$age,df$balance,type='h',col='black',xlab="age",ylab="balance",main="balance vs age")
+
+```
+
+
+Calculating the annual salary for each customer
+
+Correlation between salary and age
+Correlation between salary and balance
+Correlation between salary and gender
+
+```{r}
+
+
+library(tree)
+library(ISLR)
+library(rpart)
+library(rpart.plot)
+library(car)
+
+salary<-df%>% filter(txn_description=="PAY/SALARY")%>% group_by(customer_id,age,gender,balance)%>% summarise(salary=mean(amount)*12)
+head(salary)
+class(salary)
+typeof(salary)
+
+cor(salary$salary,salary$age)
+cor(salary$salary,salary$balance)
+
+ggplot(salary,aes(x=age,y=salary))+geom_point(color= "steelblue",size=3)+ geom_smooth(method = "lm")
+
+ggplot(salary,aes(x=gender,y=salary))+geom_point(color= "steelblue",size=3) 
+
+boxplot(salary~gender,data=salary,main="corrolation between age and salary",col=c("pink","light blue"))
+
+```
+
+
+To check if gender influences salary income
+```{r}
+
+
+#dependency check btw salary n gender
+leveneTest(salary ~ gender, data = salary)
+t.test(salary~gender,data=salary,alternative = "greater", var.equal = FALSE)
+
+
+salary$gender[salary$gender %in% "F"] <- 1
+salary$gender[salary$gender %in% "M"] <- 0
+salary$gender<-as.numeric(salary$gender)
+typeof(salary$gender)
+
+
+com=salary[,c("age","balance","salary","gender")]
+cc = cor(com, method = "spearman")
+cc
+
+
+```
+
+
+Building a simple linear model to predict annual salary based on age and gender
+Building decision tree to predict annual salary and compare which gave better accuracy
+
+```{r}
+#regression model:
+
+#Dividing data into training and testing
+
+set.seed(100)  # setting seed to reproduce results of random sampling
+
+# row indices for training data
+trainingRowIndex <- sample(1:nrow(salary),0.8*nrow(salary))
+
+ # model training data
+trainingData <- salary[trainingRowIndex, ] 
+testData  <- salary[-trainingRowIndex, ]
+
+lmMod <- lm(salary ~ age+gender, data=salary)
+summary(lmMod)
+
+# build the model
+distPred <- predict(lmMod, testData)
+
+# make actuals_predicteds dataframe
+actuals_preds <- data.frame(cbind(actuals=testData$salary, predicteds=distPred))  
+correlation_accuracy <- cor(actuals_preds)
+correlation_accuracy
+
+head(actuals_preds)
+
+#root mean square error
+rmse <-print(sqrt(mean(distPred-testData$salary)^2))
+
+
+########decision tree
+
+sal<-salary[,c("age","salary","gender")]
+
+#fitting the model
+fit <- rpart(salary~., data = sal, method = 'anova')
+rpart.plot(fit)
+
+#predicting the based on test data
+p<-predict(fit,testData,type="vector")
+
+#root mean square value
+rmse_tree<-sqrt(mean((testData$salary-p)^2))
+rmse_tree
+
+```
+
