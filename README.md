@@ -1,15 +1,15 @@
 # ANZ-data-analysis
 There were 2 tasks in this virtual internship:
 1) Exploratory data analysis
-2)Predictive analytics
+2) Predictive analytics
 
 1) Exploration Outcomes:
 
-There are 23 column in the dataset and 12043 observations/rows of data.​
-From summary we can see that columns ‘card_present_flag’, ‘bpay_biller_code’, ’merchent_code’ have 92% and 36% of missing values, so we’ll discard these columns.​
+There are 23 column in the dataset and 12043 observations/rows of data.
+From summary we can see that columns ‘card_present_flag’, ‘bpay_biller_code’, ’merchent_code’ have 92% and 36% of missing values, so we’ll discard these columns.
 
-In august total no. of transaction are: 3943​
-In September total no. of transaction are: 4013​
+In august total no. of transaction are: 3943
+In September total no. of transaction are: 4013
 In October total no. of transaction are: 4087
 
 Avg no. Of transaction in 3 months are: 4014
